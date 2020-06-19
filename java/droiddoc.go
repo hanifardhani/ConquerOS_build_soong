@@ -350,11 +350,16 @@ type ApiFilePath interface {
 	ApiFilePath() android.Path
 }
 
+type ApiStubsSrcProvider interface {
+	StubsSrcJar() android.Path
+}
+
 // Provider of information about API stubs, used by java_sdk_library.
 type ApiStubsProvider interface {
 	ApiFilePath
 	RemovedApiFilePath() android.Path
-	StubsSrcJar() android.Path
+
+	ApiStubsSrcProvider
 }
 
 //
@@ -540,7 +545,7 @@ func (j *Javadoc) collectDeps(ctx android.ModuleContext) deps {
 		case libTag:
 			switch dep := module.(type) {
 			case SdkLibraryDependency:
-				deps.classpath = append(deps.classpath, dep.SdkImplementationJars(ctx, j.sdkVersion())...)
+				deps.classpath = append(deps.classpath, dep.SdkHeaderJars(ctx, j.sdkVersion())...)
 			case Dependency:
 				deps.classpath = append(deps.classpath, dep.HeaderJars()...)
 				deps.aidlIncludeDirs = append(deps.aidlIncludeDirs, dep.AidlIncludeDirs()...)
@@ -1308,12 +1313,9 @@ func (d *Droidstubs) annotationsFlags(ctx android.ModuleContext, cmd *android.Ru
 		d.annotationsZip = android.PathForModuleOut(ctx, ctx.ModuleName()+"_annotations.zip")
 		cmd.FlagWithOutput("--extract-annotations ", d.annotationsZip)
 
-		if len(d.properties.Merge_annotations_dirs) == 0 {
-			ctx.PropertyErrorf("merge_annotations_dirs",
-				"has to be non-empty if annotations was enabled!")
+		if len(d.properties.Merge_annotations_dirs) != 0 {
+			d.mergeAnnoDirFlags(ctx, cmd)
 		}
-
-		d.mergeAnnoDirFlags(ctx, cmd)
 
 		// TODO(tnorbye): find owners to fix these warnings when annotation was enabled.
 		cmd.FlagWithArg("--hide ", "HiddenTypedefConstant").
@@ -1913,6 +1915,10 @@ func (p *PrebuiltStubsSources) OutputFiles(tag string) (android.Paths, error) {
 	default:
 		return nil, fmt.Errorf("unsupported module reference tag %q", tag)
 	}
+}
+
+func (d *PrebuiltStubsSources) StubsSrcJar() android.Path {
+	return d.stubsSrcJar
 }
 
 func (p *PrebuiltStubsSources) GenerateAndroidBuildActions(ctx android.ModuleContext) {
