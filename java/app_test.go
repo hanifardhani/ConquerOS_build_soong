@@ -149,7 +149,7 @@ func TestAndroidAppSet(t *testing.T) {
 			prerelease: true,
         }`)
 	module := ctx.ModuleForTests("foo", "android_common")
-	const packedSplitApks = "extracted.zip"
+	const packedSplitApks = "foo.zip"
 	params := module.Output(packedSplitApks)
 	if params.Rule == nil {
 		t.Errorf("expected output %s is missing", packedSplitApks)
@@ -173,16 +173,17 @@ func TestAndroidAppSet_Variants(t *testing.T) {
 			set: "prebuilts/apks/app.apks",
 		}`
 	testCases := []struct {
-		name                string
-		deviceArch          *string
-		deviceSecondaryArch *string
-		aaptPrebuiltDPI     []string
-		sdkVersion          int
-		expected            map[string]string
+		name            string
+		targets         []android.Target
+		aaptPrebuiltDPI []string
+		sdkVersion      int
+		expected        map[string]string
 	}{
 		{
-			name:            "One",
-			deviceArch:      proptools.StringPtr("x86"),
+			name: "One",
+			targets: []android.Target{
+				{Os: android.Android, Arch: android.Arch{ArchType: android.X86}},
+			},
 			aaptPrebuiltDPI: []string{"ldpi", "xxhdpi"},
 			sdkVersion:      29,
 			expected: map[string]string{
@@ -194,11 +195,13 @@ func TestAndroidAppSet_Variants(t *testing.T) {
 			},
 		},
 		{
-			name:                "Two",
-			deviceArch:          proptools.StringPtr("x86_64"),
-			deviceSecondaryArch: proptools.StringPtr("x86"),
-			aaptPrebuiltDPI:     nil,
-			sdkVersion:          30,
+			name: "Two",
+			targets: []android.Target{
+				{Os: android.Android, Arch: android.Arch{ArchType: android.X86_64}},
+				{Os: android.Android, Arch: android.Arch{ArchType: android.X86}},
+			},
+			aaptPrebuiltDPI: nil,
+			sdkVersion:      30,
 			expected: map[string]string{
 				"abis":              "X86_64,X86",
 				"allow-prereleased": "false",
@@ -213,12 +216,11 @@ func TestAndroidAppSet_Variants(t *testing.T) {
 		config := testAppConfig(nil, bp, nil)
 		config.TestProductVariables.AAPTPrebuiltDPI = test.aaptPrebuiltDPI
 		config.TestProductVariables.Platform_sdk_version = &test.sdkVersion
-		config.TestProductVariables.DeviceArch = test.deviceArch
-		config.TestProductVariables.DeviceSecondaryArch = test.deviceSecondaryArch
+		config.Targets[android.Android] = test.targets
 		ctx := testContext()
 		run(t, ctx, config)
 		module := ctx.ModuleForTests("foo", "android_common")
-		const packedSplitApks = "extracted.zip"
+		const packedSplitApks = "foo.zip"
 		params := module.Output(packedSplitApks)
 		for k, v := range test.expected {
 			if actual := params.Args[k]; actual != v {
@@ -2717,7 +2719,7 @@ func TestCodelessApp(t *testing.T) {
 }
 
 func TestEmbedNotice(t *testing.T) {
-	ctx, _ := testJava(t, cc.GatherRequiredDepsForTest(android.Android)+`
+	ctx, _ := testJavaWithFS(t, cc.GatherRequiredDepsForTest(android.Android)+`
 		android_app {
 			name: "foo",
 			srcs: ["a.java"],
@@ -2773,7 +2775,12 @@ func TestEmbedNotice(t *testing.T) {
 			srcs: ["b.java"],
 			notice: "TOOL_NOTICE",
 		}
-	`)
+	`, map[string][]byte{
+		"APP_NOTICE":     nil,
+		"GENRULE_NOTICE": nil,
+		"LIB_NOTICE":     nil,
+		"TOOL_NOTICE":    nil,
+	})
 
 	// foo has NOTICE files to process, and embed_notices is true.
 	foo := ctx.ModuleForTests("foo", "android_common")
