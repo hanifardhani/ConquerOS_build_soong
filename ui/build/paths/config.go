@@ -80,6 +80,8 @@ var Configuration = map[string]PathConfig{
 	"aarch64-linux-android-nm":      Log,
 	"aarch64-linux-android-objcopy": Log,
 	"aarch64-linux-android-objdump": Log,
+        "arm-linux-androidkernel-as": Log,
+        "arm-linux-androidkernel-ld": Log,
 	"bash":     Allowed,
 	"bc":       Allowed,
 	"bison":    Log,
