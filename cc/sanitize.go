@@ -763,7 +763,7 @@ func isSanitizableDependencyTag(tag blueprint.DependencyTag) bool {
 // as vendor snapshot. Such modules must create both cfi and non-cfi variants,
 // except for ones which explicitly disable cfi.
 func needsCfiForVendorSnapshot(mctx android.TopDownMutatorContext) bool {
-	if isVendorProprietaryPath(mctx.ModuleDir()) {
+	if isVendorProprietaryModule(mctx) {
 		return false
 	}
 
@@ -865,7 +865,7 @@ func sanitizerRuntimeDepsMutator(mctx android.TopDownMutatorContext) {
 				return true
 			}
 
-			if p, ok := d.linker.(*vendorSnapshotLibraryDecorator); ok {
+			if p, ok := d.linker.(*snapshotLibraryDecorator); ok {
 				if Bool(p.properties.Sanitize_minimal_dep) {
 					c.sanitize.Properties.MinimalRuntimeDep = true
 				}
